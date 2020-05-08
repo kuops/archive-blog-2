@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+
+
+
+
+<head>
+  <meta charset="UTF-8">
+  <link rel="apple-touch-icon" sizes="76x76" href="/img/apple-touch-icon.png">
+  <link rel="icon" type="image/png" href="/img/favicon.png">
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  
+  <meta name="theme-color" content="#2f4154">
+  <meta name="description" content="">
+  <meta name="author" content="John Doe">
+  <meta name="keywords" content="">
+  <title>Tmux 快速入门 - Shiny&#39;s Blog</title>
+
+  <link  rel="stylesheet" href="https://cdn.staticfile.org/font-awesome/5.12.1/css/all.min.css" />
+<link  rel="stylesheet" href="https://cdn.staticfile.org/twitter-bootstrap/4.4.1/css/bootstrap.min.css" />
+<link  rel="stylesheet" href="https://cdn.staticfile.org/mdbootstrap/4.13.0/css/mdb.min.css" />
+<link  rel="stylesheet" href="https://cdn.staticfile.org/github-markdown-css/3.0.1/github-markdown.min.css" />
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1067060_qzomjdt8bmp.css">
+
+
+
+  <link  rel="stylesheet" href="/lib/prettify/tomorrow-night-eighties.min.css" />
+
+<link  rel="stylesheet" href="/css/main.css" />
+
+
+  <link defer rel="stylesheet" href="https://cdn.staticfile.org/fancybox/3.5.7/jquery.fancybox.min.css" />
+
+
+<!-- 自定义样式保持在最底部 -->
+
+
+<meta name="generator" content="Hexo 4.2.0"></head>
+
+
+<body>
+  <header style="height: 40vh;">
+    <nav id="navbar" class="navbar fixed-top  navbar-expand-lg navbar-dark scrolling-navbar">
+  <div class="container">
+    <a class="navbar-brand"
+       href="/">&nbsp;<strong>Shiny's Blog</strong>&nbsp;</a>
+
+    <button id="navbar-toggler-btn" class="navbar-toggler" type="button" data-toggle="collapse"
+            data-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <div class="animated-icon"><span></span><span></span><span></span></div>
+    </button>
+
+    <!-- Collapsible content -->
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav ml-auto text-center">
+        
+          
+          
+          
+          
+          <li class="nav-item">
+            <a class="nav-link" href="/">首页</a>
+          </li>
+        
+          
+          
+          
+          
+          <li class="nav-item">
+            <a class="nav-link" href="/archives/">归档</a>
+          </li>
+        
+          
+          
+          
+          
+          <li class="nav-item">
+            <a class="nav-link" href="/categories/">分类</a>
+          </li>
+        
+          
+          
+          
+          
+          <li class="nav-item">
+            <a class="nav-link" href="/tags/">标签</a>
+          </li>
+        
+          
+          
+          
+          
+          <li class="nav-item">
+            <a class="nav-link" href="/about/">关于</a>
+          </li>
+        
+          
+          
+          
+          
+          <li class="nav-item">
+            <a class="nav-link" href="/links/">友链</a>
+          </li>
+        
+        
+          <li class="nav-item" id="search-btn">
+            <a class="nav-link" data-toggle="modal" data-target="#modalSearch">&nbsp;&nbsp;<i
+                class="iconfont icon-search"></i>&nbsp;&nbsp;</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</nav>
+
+    <div class="view intro-2" id="background" parallax=true
+         style="background: url('/themes/fluid/images/default.jpg') no-repeat center center;
+           background-size: cover;">
+      <div class="full-bg-img">
+        <div class="mask rgba-black-light flex-center">
+          <div class="container text-center white-text fadeInUp">
+            <span class="h2" id="subtitle">
+              
+            </span>
+
+            
+              
+                <p class="mt-3 post-meta">
+                  <i class="fas fa-calendar-alt" aria-hidden="true"></i>
+                  星期日, 三月 22日 2020, 1:34 下午
+                </p>
+              
+
+              <p class="mt-1">
+                
+                  
+                  <span class="post-meta">
+                    <i class="far fa-chart-bar"></i>
+                    1.3k 字
+                  </span>
+                
+
+                
+                  
+                  <span class="post-meta">
+                      <i class="far fa-clock"></i>
+                      5 分钟
+                  </span>
+                
+
+                
+              </p>
+            
+          </div>
+
+          
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    
+      
+
+<div class="container-fluid">
+  <div class="row">
+    <div class="d-none d-lg-block col-lg-2"></div>
+    <div class="col-lg-8 nopadding-md">
+      <div class="container nopadding-md" id="board-ctn">
+        <div class="py-5 z-depth-3" id="board">
+          <div class="post-content mx-auto" id="post">
+            
+            <div class="markdown-body">
+              <h2 id="简介"><a href="#简介" class="headerlink" title="简介"></a>简介</h2><p>tmux 的作者将其描述为终端多路复用器 (terminal multiplexer)。使用 tmux 的好处主要有两点:</p>
+<a id="more"></a>
+
+<ul>
+<li>多窗口操作，在一个终端分出多个面板</li>
+<li>避免 SSH 连接不稳定，断开前台任务问题</li>
+</ul>
+<p>tmux 所有命令都以前置按键方式进行触发（默认为 <code>C-b</code>），<code>C-b</code> 表示按住 <code>ctrl</code> 键和 ``b` 键:</p>
+<h2 id="常用操作"><a href="#常用操作" class="headerlink" title="常用操作"></a>常用操作</h2><p>常用命令:</p>
+<table>
+<thead>
+<tr>
+<th align="left">描述</th>
+<th align="left">操作</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">启动新的会话</td>
+<td align="left">终端输入 <code>tmux</code></td>
+</tr>
+<tr>
+<td align="left">创建新的会话并指定名称</td>
+<td align="left">终端输入 <code>tmux new -s name</code></td>
+</tr>
+<tr>
+<td align="left">查看会话列表</td>
+<td align="left">终端输入 <code>tmux ls</code></td>
+</tr>
+<tr>
+<td align="left">重新连接会话</td>
+<td align="left">终端输入 <code>tmux a</code></td>
+</tr>
+<tr>
+<td align="left">指定会话连接</td>
+<td align="left">终端输入 <code>tmux a -t num/name</code></td>
+</tr>
+<tr>
+<td align="left">启动新的窗口</td>
+<td align="left">终端输入 <code>tmux neww -n name</code></td>
+</tr>
+<tr>
+<td align="left">根据会话名称启动新的窗口</td>
+<td align="left">终端输入 <code>tmux new -s session-name -n name</code></td>
+</tr>
+<tr>
+<td align="left">退出会话</td>
+<td align="left">终端输入 <code>tmux detach</code></td>
+</tr>
+<tr>
+<td align="left">结束会话</td>
+<td align="left">终端输入 <code>tmux kill-session -t num/name</code></td>
+</tr>
+</tbody></table>
+<blockquote>
+<p>这里退出的意思是退出窗口使其后台运行，结束为 kill</p>
+</blockquote>
+<p>如果在一个会话中可以使用命令模式, 按住前置键 + <code>:</code>, 进入命令模式:</p>
+<table>
+<thead>
+<tr>
+<th align="left">描述</th>
+<th align="left">操作</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">新建窗口</td>
+<td align="left">命令模式输入 <code>new-window -n name</code></td>
+</tr>
+<tr>
+<td align="left">新建会话</td>
+<td align="left">命令模式输入 <code>new -s name</code></td>
+</tr>
+<tr>
+<td align="left">切换会话</td>
+<td align="left">命令模式输入 <code>attach-session -t num/name</code></td>
+</tr>
+</tbody></table>
+<p>常用快捷键</p>
+<table>
+<thead>
+<tr>
+<th align="left">描述</th>
+<th align="left">操作</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">显示快捷键帮助</td>
+<td align="left"><code>prefix ?</code></td>
+</tr>
+<tr>
+<td align="left">重命名当前会话</td>
+<td align="left"><code>prefix $</code></td>
+</tr>
+<tr>
+<td align="left">切换到上一个会话</td>
+<td align="left"><code>prefix (</code></td>
+</tr>
+<tr>
+<td align="left">切换到下一个会话</td>
+<td align="left"><code>prefix )</code></td>
+</tr>
+<tr>
+<td align="left">退出会话，使其在后台运行</td>
+<td align="left"><code>prefix d</code></td>
+</tr>
+<tr>
+<td align="left">切换窗口</td>
+<td align="left"><code>prefix [0-9]</code></td>
+</tr>
+<tr>
+<td align="left">切换下一个窗口</td>
+<td align="left"><code>prefix p</code></td>
+</tr>
+<tr>
+<td align="left">切换前一个窗口</td>
+<td align="left"><code>prefix n</code></td>
+</tr>
+<tr>
+<td align="left">创建新的窗口</td>
+<td align="left"><code>prefix c</code></td>
+</tr>
+<tr>
+<td align="left">重命名当前窗口</td>
+<td align="left"><code>prefix ,</code></td>
+</tr>
+<tr>
+<td align="left">显示所有窗口的可选择列表</td>
+<td align="left"><code>prefix w</code></td>
+</tr>
+<tr>
+<td align="left">结束窗口</td>
+<td align="left"><code>prefix  &amp;</code></td>
+</tr>
+<tr>
+<td align="left">水平分割面板</td>
+<td align="left"><code>prefix &quot;</code></td>
+</tr>
+<tr>
+<td align="left">垂直分割面板</td>
+<td align="left"><code>prefix %</code></td>
+</tr>
+<tr>
+<td align="left">切换面板</td>
+<td align="left"><code>prefix 方向键</code></td>
+</tr>
+<tr>
+<td align="left">显示面板编号</td>
+<td align="left"><code>prefix q</code></td>
+</tr>
+<tr>
+<td align="left">关闭面板</td>
+<td align="left"><code>prefix x</code></td>
+</tr>
+<tr>
+<td align="left">切换到下一个面板</td>
+<td align="left"><code>prefix o</code></td>
+</tr>
+<tr>
+<td align="left">交换面板位置</td>
+<td align="left"><code>prefix }</code></td>
+</tr>
+</tbody></table>
+<h2 id="复制模式"><a href="#复制模式" class="headerlink" title="复制模式"></a>复制模式</h2><p>添加下面一行到 $HOME/.tmux.conf, 通过 vim 的快捷键实现浏览, 复制等操作;</p>
+<pre><code class="bash">setw -g mode-keys vi</code></pre>
+<table>
+<thead>
+<tr>
+<th align="left">描述</th>
+<th align="left">操作</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">进入复制模式</td>
+<td align="left"><code>prefix [</code></td>
+</tr>
+<tr>
+<td align="left">粘贴选择内容(buffer_0)</td>
+<td align="left"><code>prefix ]</code></td>
+</tr>
+<tr>
+<td align="left">显示 buffer_0 的内容</td>
+<td align="left">命令行模式输入<code>show-buffer</code></td>
+</tr>
+<tr>
+<td align="left">复制整个能见的内容到当前的 buffer</td>
+<td align="left">命令行模式输入<code>capture-buffer</code></td>
+</tr>
+<tr>
+<td align="left">列出所有的 buffer</td>
+<td align="left">命令行模式输入<code>list-buffers</code></td>
+</tr>
+<tr>
+<td align="left">选择用于粘贴的 buffer</td>
+<td align="left">命令行模式输入<code>choose-buffer</code></td>
+</tr>
+<tr>
+<td align="left">将 buffer 的内容复制到文件</td>
+<td align="left">命令行模式输入 <code>save-buffer file.txt</code></td>
+</tr>
+</tbody></table>
+<table>
+<thead>
+<tr>
+<th>vi</th>
+<th>emacs</th>
+<th>功能</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>^</td>
+<td>M-m</td>
+<td>跳转到一行开头</td>
+</tr>
+<tr>
+<td>Esc</td>
+<td>C-g</td>
+<td>放弃选择</td>
+</tr>
+<tr>
+<td>k</td>
+<td>Up</td>
+<td>上移</td>
+</tr>
+<tr>
+<td>j</td>
+<td>Down</td>
+<td>下移</td>
+</tr>
+<tr>
+<td>h</td>
+<td>Left</td>
+<td>左移</td>
+</tr>
+<tr>
+<td>l</td>
+<td>Right</td>
+<td>右移</td>
+</tr>
+<tr>
+<td>L</td>
+<td></td>
+<td>最后一行</td>
+</tr>
+<tr>
+<td>M</td>
+<td>M-r</td>
+<td>中间一行</td>
+</tr>
+<tr>
+<td>H</td>
+<td>M-R</td>
+<td>第一行</td>
+</tr>
+<tr>
+<td>$</td>
+<td>C-e</td>
+<td>跳转到行尾</td>
+</tr>
+<tr>
+<td>:</td>
+<td>g</td>
+<td>跳转至某一行</td>
+</tr>
+<tr>
+<td>C-d</td>
+<td>M-Down</td>
+<td>下翻半页</td>
+</tr>
+<tr>
+<td>C-u</td>
+<td>M-Up</td>
+<td>上翻半页</td>
+</tr>
+<tr>
+<td>C-f</td>
+<td>Page down</td>
+<td>下翻一页</td>
+</tr>
+<tr>
+<td>C-b</td>
+<td>Page up</td>
+<td>上翻一页</td>
+</tr>
+<tr>
+<td>w</td>
+<td>M-f</td>
+<td>下一个字符</td>
+</tr>
+<tr>
+<td>b</td>
+<td>M-b</td>
+<td>前一个字符</td>
+</tr>
+<tr>
+<td>q</td>
+<td>Esc</td>
+<td>退出</td>
+</tr>
+<tr>
+<td>?</td>
+<td>C-r</td>
+<td>往上查找</td>
+</tr>
+<tr>
+<td>/</td>
+<td>C-s</td>
+<td>往下查找</td>
+</tr>
+<tr>
+<td>n</td>
+<td>n</td>
+<td>查找下一个</td>
+</tr>
+<tr>
+<td>Space</td>
+<td>C-Space</td>
+<td>进入选择模式</td>
+</tr>
+<tr>
+<td>Enter</td>
+<td>M-w</td>
+<td>确认选择内容, 并退出</td>
+</tr>
+</tbody></table>
+<p>如果想在 iterm2 中使用复制，开启 <code>Applications in terminal may access clipboard</code> 选项。</p>
+<p><img src="/images/tmux_quick_start/tmux_quick_start_01.png" srcset="/img/loading.gif" alt="iterm2"></p>
+<p>然后按住 <code>options</code> 键不放，点击鼠标左键复制。</p>
+<h2 id="自定义配置"><a href="#自定义配置" class="headerlink" title="自定义配置"></a>自定义配置</h2><p>自定义配置放在 <code>~/.tmux.conf</code> 中，可以自行 github 搜索相关的配置，来完善自己的配置。</p>
+<p>我目前正在使用的配置:</p>
+<blockquote>
+<p>需要先安装 tmux 插件管理工具 tpm<br>tmux 版本 3.0a</p>
+</blockquote>
+<pre><code class="bash"># 使用 C-a 替换 C-b prefix 按键
+unbind C-b
+set-option -g prefix C-a
+bind-key C-a send-prefix
+
+# 把窗口的初始索引值从 0 改为 1
+set -g base-index 1
+
+# 关闭窗口时重新对窗口进行排序
+set-option -g renumber-windows on
+
+# 设定前缀键和命令键之间的延时
+set -sg escape-time 1
+
+# prefix R 重载配置文件
+bind-key R source-file ~/.tmux.conf \; display-message &quot;tmux.conf reloaded.&quot;
+
+# 把面板的初始索引值从 0 改为 1
+setw -g pane-base-index 1
+
+# 复制粘贴模式使用 vi 模式
+setw -g mode-keys vi
+
+# 启用鼠标
+set -g mouse on
+
+# 设置默认的终端模式为 256 色模式
+set-option -g default-terminal screen-256color
+
+# 使用 prefix v 和 s 分割面板, 使用 prefix h,j,k,l 在面板间跳转
+bind-key v split-window -h -c &quot;#{pane_current_path}&quot;
+bind-key s split-window -v -c &quot;#{pane_current_path}&quot;
+bind-key h select-pane -L
+bind-key j select-pane -D
+bind-key k select-pane -U
+bind-key l select-pane -R
+
+# 复制模式使用 v 开始选择，按 y 结束选择并复制
+bind-key -T copy-mode-vi &#39;v&#39; send -X begin-selection
+bind-key -T copy-mode-vi &#39;y&#39; send -X copy-selection-and-cancel
+
+# 引用主题
+set -g @plugin &#39;jimeh/tmux-themepack&#39;
+set -g @themepack &#39;powerline/block/gray&#39;
+
+# 安装 tpm tmux 管理器插件
+set -g @plugin &#39;tmux-plugins/tpm&#39;
+
+# 保留此行在 tmux 最底部使 tpm 正常工作
+run -b &#39;~/.tmux/plugins/tpm/tpm&#39;</code></pre>
+
+            </div>
+            <hr>
+            <div>
+              <p>
+                
+                  <span>
+                <i class="iconfont icon-inbox"></i>
+                    
+                      <a class="hover-with-bg" href="/categories/terminal-tools/">terminal-tools</a>
+                      &nbsp;
+                    
+                  </span>&nbsp;&nbsp;
+                
+                
+                  <span>
+                <i class="iconfont icon-tag"></i>
+                    
+                      <a class="hover-with-bg" href="/tags/tmux/">tmux</a>
+                    
+                  </span>
+                
+              </p>
+              
+                <p class="note note-warning">本博客所有文章除特别声明外，均采用 <a href="https://zh.wikipedia.org/wiki/Wikipedia:CC_BY-SA_3.0%E5%8D%8F%E8%AE%AE%E6%96%87%E6%9C%AC" target="_blank" rel="nofollow noopener noopener">CC BY-SA 3.0协议</a> 。转载请注明出处！</p>
+              
+              
+                <div class="post-prevnext row">
+                  <div class="post-prev col-6">
+                    
+                    
+                      <a href="/2020/03/24/fzf-quick-start/">
+                        <i class="fa fa-chevron-left"></i>
+                        <span class="hidden-mobile">Fzf 快速入门</span>
+                        <span class="visible-mobile">上一篇</span>
+                      </a>
+                    
+                  </div>
+                  <div class="post-next col-6">
+                    
+                    
+                  </div>
+                </div>
+              
+            </div>
+
+              
+                <!-- Comments -->
+                <div class="comments" id="comments">
+                  
+                  
+  <div class="disqus" style="width:100%">
+    <div id="disqus_thread"></div>
+    <script type="text/javascript">
+      var disqus_config = function () {
+        this.page.url = 'http://yoursite.com/2020/03/22/tmux-quick-start/';
+        this.page.identifier = '/2020/03/22/tmux-quick-start/';
+      };
+      var oldLoad = window.onload;
+      window.onload = function () {
+        var d = document, s = d.createElement('script');
+        s.type = 'text/javascript';
+        s.src = '//' + 'kuops-com' + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+        oldLoad && oldLoad();
+      };
+    </script>
+    <noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript" target="_blank" rel="nofollow noopener noopener">comments
+        powered by Disqus.</a></noscript>
+  </div>
+
+
+                </div>
+              
+          </div>
+        </div>
+      </div>
+    </div>
+    
+      <div class="d-none d-lg-block col-lg-2 toc-container" id="toc-ctn">
+        <div id="toc-start"></div>
+<div id="toc">
+  <p class="h5"><i class="far fa-list-alt"></i>&nbsp;目录</p>
+  <div id="tocbot"></div>
+</div>
+
+      </div>
+    
+  </div>
+</div>
+
+<!-- Custom -->
+
+
+    
+  </main>
+
+  
+    <a class="z-depth-1" id="scroll-top-button" href="#" role="button">
+      <i class="fa fa-chevron-up scroll-top-arrow" aria-hidden="true"></i>
+    </a>
+  
+
+  
+    <div class="modal fade" id="modalSearch" tabindex="-1" role="dialog" aria-labelledby="ModalLabel"
+     aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header text-center">
+        <h4 class="modal-title w-100 font-weight-bold">搜索</h4>
+        <button type="button" id="local-search-close" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body mx-3">
+        <div class="md-form mb-5">
+          <input type="text" id="local-search-input" class="form-control validate">
+          <label data-error="x" data-success="v"
+                 for="local-search-input">关键词</label>
+        </div>
+        <div class="list-group" id="local-search-result"></div>
+      </div>
+    </div>
+  </div>
+</div>
+  
+
+  
+
+  
+
+  <footer class="mt-5">
+  <div class="text-center py-3">
+    <div>
+      <a href="https://hexo.io" target="_blank" rel="nofollow noopener"><b>Hexo</b></a>
+      <i class="iconfont icon-love"></i>
+      <a href="https://github.com/fluid-dev/hexo-theme-fluid" target="_blank" rel="nofollow noopener"> <b>Fluid</b></a>
+    </div>
+    
+
+    
+
+    
+  </div>
+</footer>
+
+<!-- SCRIPTS -->
+<script  src="https://cdn.staticfile.org/jquery/3.4.1/jquery.min.js" ></script>
+<script  src="https://cdn.staticfile.org/popper.js/1.16.1/umd/popper.min.js" ></script>
+<script  src="https://cdn.staticfile.org/twitter-bootstrap/4.4.1/js/bootstrap.min.js" ></script>
+<script  src="https://cdn.staticfile.org/mdbootstrap/4.13.0/js/mdb.min.js" ></script>
+<script  src="/js/main.js" ></script>
+
+
+  <script  src="/js/lazyload.js" ></script>
+
+
+
+  
+  <script  src="https://cdn.staticfile.org/tocbot/4.10.0/tocbot.min.js" ></script>
+  <script>
+    $(document).ready(function () {
+      var navHeight = $('#navbar').height();
+      var toc = $('#toc');
+      var boardCtn = $('#board-ctn');
+      var boardTop = boardCtn.offset().top;
+      var tocLimMax = 2 * boardTop + boardCtn.height();
+
+      $(window).scroll(function () {
+        var tocLimMin = $('#toc-start').offset().top - navHeight;
+        var scroH = document.body.scrollTop + document.documentElement.scrollTop;
+
+        if (tocLimMin <= scroH && scroH <= tocLimMax) {
+          toc.css({
+            'display': 'block',
+            'position': 'fixed',
+            'top': navHeight,
+          });
+        } else if (scroH <= tocLimMin) {
+          toc.css({
+            'position': '',
+            'top': '',
+          });
+        } else if (scroH > tocLimMax) {
+          toc.css('display', 'none');
+        }
+      });
+      tocbot.init({
+        tocSelector: '#tocbot',
+        contentSelector: '.post-content',
+        headingSelector: 'h1,h2,h3,h4,h5,h6',
+        linkClass: 'tocbot-link',
+        activeLinkClass: 'tocbot-active-link',
+        listClass: 'tocbot-list',
+        isCollapsedClass: 'tocbot-is-collapsed',
+        collapsibleClass: 'tocbot-is-collapsible',
+        scrollSmooth: true,
+        headingsOffset: -boardTop
+      });
+      if ($('.toc-list-item').length > 0) {
+        $('#toc > p').css('visibility', 'visible');
+      }
+      var offset = boardCtn.css('margin-right')
+      $('#toc-ctn').css({
+        'right': offset
+      })
+    });
+  </script>
+
+
+
+
+
+  <script defer src="https://cdn.staticfile.org/clipboard.js/2.0.6/clipboard.min.js" ></script>
+  <script  src="/js/clipboard-use.js" ></script>
+
+
+
+
+
+
+
+
+<!-- Plugins -->
+
+
+  
+
+  
+    <!-- Google Analytics -->
+    <script defer>
+      (function (i, s, o, g, r, a, m) {
+        i['GoogleAnalyticsObject'] = r;
+        i[r] = i[r] || function () {
+          (i[r].q = i[r].q || []).push(arguments)
+        }, i[r].l = 1 * new Date();
+        a = s.createElement(o),
+          m = s.getElementsByTagName(o)[0];
+        a.async = 1;
+        a.src = g;
+        m.parentNode.insertBefore(a, m)
+      })(window, document, 'script', 'https://www.google-analytics.com/analytics.js', 'ga');
+
+      ga('create', 'UA-161501571-1', 'auto');
+      ga('send', 'pageview');
+    </script>
+  
+
+  
+
+  
+
+  
+
+
+
+  <script  src="https://cdn.staticfile.org/prettify/188.0.0/prettify.min.js" ></script>
+  <script>
+    $(document).ready(function () {
+      $('pre').addClass('prettyprint  linenums');
+      prettyPrint();
+    })
+  </script>
+
+
+
+  <script  src="https://cdn.staticfile.org/typed.js/2.0.11/typed.min.js" ></script>
+  <script>
+    var typed = new Typed('#subtitle', {
+      strings: [
+        '  ',
+        "Tmux 快速入门&nbsp;",
+      ],
+      cursorChar: "⎈",
+      typeSpeed: 70,
+      loop: false,
+    });
+    typed.stop();
+    $(document).ready(function () {
+      $(".typed-cursor").addClass("h2");
+      typed.start();
+    });
+  </script>
+
+
+
+  <script  src="https://cdn.staticfile.org/anchor-js/4.2.2/anchor.min.js" ></script>
+  <script>
+    anchors.options = {
+      placement: "right",
+      visible: "hover",
+      
+    };
+    var el = "h1,h2,h3,h4,h5,h6".split(",");
+    var res = [];
+    for (item of el) {
+      res.push(".markdown-body > " + item)
+    }
+    anchors.add(res.join(", "))
+  </script>
+
+
+
+  <script  src="/js/local-search.js" ></script>
+  <script>
+    var path = "/local-search.xml";
+    var inputArea = document.querySelector("#local-search-input");
+    inputArea.onclick = function () {
+      getSearchFile(path);
+      this.onclick = null
+    }
+  </script>
+
+
+
+  <script defer src="https://cdn.staticfile.org/fancybox/3.5.7/jquery.fancybox.min.js" ></script>
+  <script>
+    $("#post img:not(.no-zoom img, img[no-zoom])").each(
+      function () {
+        var element = document.createElement("a");
+        $(element).attr("data-fancybox", "images");
+        $(element).attr("href", $(this).attr("src"));
+        $(this).wrap(element);
+      }
+    );
+  </script>
+
+
+
+
+
+
+
+
+
+
+
+
+</body>
+</html>

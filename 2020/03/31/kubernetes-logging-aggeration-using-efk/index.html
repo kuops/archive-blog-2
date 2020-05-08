@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+
+
+
+
+<head>
+  <meta charset="UTF-8">
+  <link rel="apple-touch-icon" sizes="76x76" href="/img/apple-touch-icon.png">
+  <link rel="icon" type="image/png" href="/img/favicon.png">
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  
+  <meta name="theme-color" content="#2f4154">
+  <meta name="description" content="">
+  <meta name="author" content="John Doe">
+  <meta name="keywords" content="">
+  <title>使用 efk 对 kubernetes 日志进程聚合 - Shiny&#39;s Blog</title>
+
+  <link  rel="stylesheet" href="https://cdn.staticfile.org/font-awesome/5.12.1/css/all.min.css" />
+<link  rel="stylesheet" href="https://cdn.staticfile.org/twitter-bootstrap/4.4.1/css/bootstrap.min.css" />
+<link  rel="stylesheet" href="https://cdn.staticfile.org/mdbootstrap/4.13.0/css/mdb.min.css" />
+<link  rel="stylesheet" href="https://cdn.staticfile.org/github-markdown-css/3.0.1/github-markdown.min.css" />
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1067060_qzomjdt8bmp.css">
+
+
+
+  <link  rel="stylesheet" href="/lib/prettify/tomorrow-night-eighties.min.css" />
+
+<link  rel="stylesheet" href="/css/main.css" />
+
+
+  <link defer rel="stylesheet" href="https://cdn.staticfile.org/fancybox/3.5.7/jquery.fancybox.min.css" />
+
+
+<!-- 自定义样式保持在最底部 -->
+
+
+<meta name="generator" content="Hexo 4.2.0"></head>
+
+
+<body>
+  <header style="height: 40vh;">
+    <nav id="navbar" class="navbar fixed-top  navbar-expand-lg navbar-dark scrolling-navbar">
+  <div class="container">
+    <a class="navbar-brand"
+       href="/">&nbsp;<strong>Shiny's Blog</strong>&nbsp;</a>
+
+    <button id="navbar-toggler-btn" class="navbar-toggler" type="button" data-toggle="collapse"
+            data-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <div class="animated-icon"><span></span><span></span><span></span></div>
+    </button>
+
+    <!-- Collapsible content -->
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav ml-auto text-center">
+        
+          
+          
+          
+          
+          <li class="nav-item">
+            <a class="nav-link" href="/">首页</a>
+          </li>
+        
+          
+          
+          
+          
+          <li class="nav-item">
+            <a class="nav-link" href="/archives/">归档</a>
+          </li>
+        
+          
+          
+          
+          
+          <li class="nav-item">
+            <a class="nav-link" href="/categories/">分类</a>
+          </li>
+        
+          
+          
+          
+          
+          <li class="nav-item">
+            <a class="nav-link" href="/tags/">标签</a>
+          </li>
+        
+          
+          
+          
+          
+          <li class="nav-item">
+            <a class="nav-link" href="/about/">关于</a>
+          </li>
+        
+          
+          
+          
+          
+          <li class="nav-item">
+            <a class="nav-link" href="/links/">友链</a>
+          </li>
+        
+        
+          <li class="nav-item" id="search-btn">
+            <a class="nav-link" data-toggle="modal" data-target="#modalSearch">&nbsp;&nbsp;<i
+                class="iconfont icon-search"></i>&nbsp;&nbsp;</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</nav>
+
+    <div class="view intro-2" id="background" parallax=true
+         style="background: url('/themes/fluid/images/default.jpg') no-repeat center center;
+           background-size: cover;">
+      <div class="full-bg-img">
+        <div class="mask rgba-black-light flex-center">
+          <div class="container text-center white-text fadeInUp">
+            <span class="h2" id="subtitle">
+              
+            </span>
+
+            
+              
+                <p class="mt-3 post-meta">
+                  <i class="fas fa-calendar-alt" aria-hidden="true"></i>
+                  星期二, 三月 31日 2020, 10:29 晚上
+                </p>
+              
+
+              <p class="mt-1">
+                
+                  
+                  <span class="post-meta">
+                    <i class="far fa-chart-bar"></i>
+                    1k 字
+                  </span>
+                
+
+                
+                  
+                  <span class="post-meta">
+                      <i class="far fa-clock"></i>
+                      5 分钟
+                  </span>
+                
+
+                
+              </p>
+            
+          </div>
+
+          
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    
+      
+
+<div class="container-fluid">
+  <div class="row">
+    <div class="d-none d-lg-block col-lg-2"></div>
+    <div class="col-lg-8 nopadding-md">
+      <div class="container nopadding-md" id="board-ctn">
+        <div class="py-5 z-depth-3" id="board">
+          <div class="post-content mx-auto" id="post">
+            
+            <div class="markdown-body">
+              <h2 id="日志分类"><a href="#日志分类" class="headerlink" title="日志分类"></a>日志分类</h2><p>在 kubernetes 中，日志大概可以分为三类:</p>
+<h3 id="docker-标准输出"><a href="#docker-标准输出" class="headerlink" title="docker 标准输出"></a>docker 标准输出</h3><p>在 docker 的 <code>/var/lib/docker/containers/xxxx-json.log</code>，在 kubernets 中，<code>/var/log/containers/</code> 使用 <code>readlink</code> 指向 <code>/var/log/pods/&lt;namespace&gt;-&lt;podname&gt;/&lt;containers&gt;/x.log</code>，而 <code>/var/log/pods/</code> 又指向了 docker 的 json.log, 因为这种日志输出不构标准，每个程序的日志规范不太一样，对该日志只进行按行搜索，不进行分词操作。</p>
+<h3 id="程序的规范日志"><a href="#程序的规范日志" class="headerlink" title="程序的规范日志"></a>程序的规范日志</h3><p>这一类日志一般跟开发约定好规范,使用同一目录进行存放，如容器中的 <code>/data/logs/appname/*.log</code>, 而 <code>/data/logs</code> 可以作为 pod 的 volume 进行挂载, 因为该日志是一种标准规范，可以进行分词操作。</p>
+<h3 id="ingress-访问日志"><a href="#ingress-访问日志" class="headerlink" title="ingress 访问日志"></a>ingress 访问日志</h3><p>这一类日志，用来定位请求，一般用来做故障分析，包括域名，状态码，响应时间等信息。</p>
+<h2 id="日志搜集实践"><a href="#日志搜集实践" class="headerlink" title="日志搜集实践"></a>日志搜集实践</h2><h3 id="准备阶段"><a href="#准备阶段" class="headerlink" title="准备阶段"></a>准备阶段</h3><ol>
+<li>准备 kubernets 集群,并安装好网络插件。</li>
+</ol>
+<pre><code class="bash"># 步骤略
+kubeadm init </code></pre>
+<ol start="2">
+<li>准备 persistent volume ，这里为了方便使用 rancher 的 local-path-provisioner，默认的路径为 <code>/opt/local-path-provisioner</code></li>
+</ol>
+<pre><code class="bash">kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/master/deploy/local-path-storage.yaml</code></pre>
+<ol start="3">
+<li>安装 istio ingress</li>
+</ol>
+<pre><code class="bash">istioctl manifest apply  --set values.global.proxy.accessLogFile=&quot;/dev/stdout&quot; --set values.mixer.telemetry.enabled=false --set values.prometheus.enabled=false</code></pre>
+<ol start="3">
+<li>部署示例应用,使用镜像 <code>kuops/log-example-app</code>,程序会同时往 <code>/data/log/log-app/info.log</code>和标准输出来输出日志, <a href="https://raw.githubusercontent.com/kuops/kuops.github.io/master/files/kubernetes-logging-aggeration-using-efk/main.go" target="_blank" rel="noopener">程序源码</a>,</li>
+</ol>
+<pre><code class="bash">kubectl apply -f https://raw.githubusercontent.com/kuops/kuops.github.io/master/files/kubernetes-logging-aggeration-using-efk/log-app.yaml</code></pre>
+<h3 id="部署-efk"><a href="#部署-efk" class="headerlink" title="部署 efk"></a>部署 efk</h3><p>首先对 yaml 进行修改: </p>
+<pre><code class="bash"># 下载 yaml
+curl -LO https://raw.githubusercontent.com/kuops/kuops.github.io/master/files/kubernetes-logging-aggeration-using-efk/elasticsearch.yaml
+curl -LO https://raw.githubusercontent.com/kuops/kuops.github.io/master/files/kubernetes-logging-aggeration-using-efk/filebeat.yaml
+curl -LO https://raw.githubusercontent.com/kuops/kuops.github.io/master/files/kubernetes-logging-aggeration-using-efk/kibana.yaml
+
+#############################
+# elasticsearch.yaml 可以修改 
+#############################
+# service kind 里的 spec.ports.nodeport
+...
+  ports:
+  - name: http
+    port: 9200
+    # nodeport ，固定为 31001
+    nodePort: 31001
+    protocol: TCP
+  type: NodePort
+###########################
+# filbeat.yaml 修改以下地方
+###########################
+# daemonset kind 里的 spec.template.spec 中的 containers.volumeMounts 和 volumes
+...
+          volumeMounts:
+      ...
+      # 这里，如果没有单独为 docker 使用磁盘，修改为 `/var/lib/docker/containers`
+          - name: varlibdockercontainers
+            mountPath: /data/docker/containers
+            readOnly: true
+      ...
+      # 这里, 是标准输出日志的 path , 路径是 rancher local volume 的 configmap 中的路径
+          - name: filelog
+            mountPath: /opt/local-path-provisioner
+            readOnly: true
+    ...
+        volumes:
+    # 这里，如果没有单独为 docker 使用磁盘，修改为 `/var/lib/docker/containers`
+        - name: varlibdockercontainers
+          hostPath:
+            path: /data/docker/containers
+    ...
+    # 这里, 是标准输出日志的 path , 路径是 rancher local volume 的 configmap 中的路径
+        - name: filelog
+          hostPath:
+            path: /opt/local-path-provisioner
+###########################
+# kibana.yaml 修改以下地方
+###########################
+# service kind 里的 spec.ports.nodeport
+...
+  ports:
+    - port: 5601
+      nodePort: 31002
+      protocol: TCP
+      name: http
+      targetPort: 5601
+  selector:
+    k8s-app: kibana
+  type: NodePort</code></pre>
+<p>部署 elasticsearch, filebeat, kibana;</p>
+<pre><code>kubectl apply -f elasticsearch.yaml
+kubectl apply -f filebeat.yaml
+kubectl apply -f kibana.yaml</code></pre><p>修改 istio 的 ingressgateway</p>
+<pre><code># 使用 kubectl edit 修改 添加 hostPort 
+kubectl edit -n istio-system  deployments.apps istio-ingressgateway
+...
+        ports:
+        - containerPort: 15020
+          protocol: TCP
+        - containerPort: 80
+          protocol: TCP
+      # 添加 hostPort
+          hostPort: 80
+</code></pre><p>添加 virtualservice</p>
+<pre><code class="bash">curl -LO https://raw.githubusercontent.com/kuops/kuops.github.io/master/files/kubernetes-logging-aggeration-using-efk/kibana-vs.yaml
+
+# 修改 INGRESS_NODE_IP 为 ingressgateway 所在 node 的 IP, 例如 `kibana.10.7.0.101.nip.io`
+...
+hosts:
+  - &quot;kibana.INGRESS_NODE_IP.nip.io&quot;</code></pre>
+<p>在 kibana 中, 使用 devtools 为 es 中添加 ingress Pipeline</p>
+<pre><code class="bash">PUT _ingest/pipeline/ingress
+{
+    &quot;description&quot;: &quot;ingress&quot;,
+    &quot;on_failure&quot;: [
+      {
+        &quot;set&quot;: {
+          &quot;field&quot;: &quot;_index&quot;,
+          &quot;value&quot;: &quot;failed-{{ _index }}&quot;
+        }
+      }
+    ],
+    &quot;processors&quot;: [
+      {
+        &quot;grok&quot;: {
+          &quot;field&quot;: &quot;message&quot;,
+          &quot;patterns&quot;: [
+            &quot;&quot;&quot;\[%{TIMESTAMP_ISO8601:timestamp}\] &quot;%{DATA:method} (?:%{URIPATH:uri_path}(?:%{URIPARAM:uri_param})?|%{DATA:})%{DATA:protocol}&quot; %{NUMBER:status_code:int} %{DATA:response_flags} %{NUMBER:bytes_sent:int} %{NUMBER:bytes_received:int} %{NUMBER:duration:int} (%{NUMBER:upstream_service_time}|-) &quot;%{IPORHOST:remote_ip}(?:,\s)?%{DATA:forwarded_for}&quot; &quot;%{DATA:user_agent}&quot; &quot;%{DATA:request_id}&quot; &quot;%{DATA:authority}&quot; %{DATA:upstream_service}&quot;&quot;&quot;
+          ]
+        }
+      },
+      {
+        &quot;gsub&quot;: {
+          &quot;field&quot;: &quot;uri_path&quot;,
+          &quot;pattern&quot;: &quot;HTTP/1.1&quot;,
+          &quot;replacement&quot;: &quot;&quot;
+        }
+      },
+      {
+        &quot;gsub&quot;: {
+          &quot;field&quot;: &quot;uri_path&quot;,
+          &quot;pattern&quot;: &quot;HTTP/2&quot;,
+          &quot;replacement&quot;: &quot;&quot;
+        }
+      },
+      {
+        &quot;remove&quot;: {
+          &quot;field&quot;: &quot;message&quot;
+        }
+      }
+    ]
+}</code></pre>
+<p>在 es 中添加程序规范日志的 pipeline</p>
+<pre><code class="bash">PUT _ingest/pipeline/podfile
+{
+      &quot;description&quot;: &quot;podfile&quot;,
+      &quot;processors&quot;: [
+        {
+          &quot;grok&quot;: {
+            &quot;field&quot;: &quot;message&quot;,
+            &quot;patterns&quot;: [
+              &quot;&quot;&quot;%{TIMESTAMP_ISO8601:log_time} \[%{LOGLEVEL:log_level}\] %{GREEDYDATA:log_msg}&quot;&quot;&quot;
+            ]
+          }
+        },
+        {
+          &quot;remove&quot;: {
+            &quot;field&quot;: &quot;message&quot;
+          }
+        }
+      ],
+      &quot;on_failure&quot;: [
+        {
+          &quot;set&quot;: {
+            &quot;field&quot;: &quot;_index&quot;,
+            &quot;value&quot;: &quot;failed-{{ _index }}&quot;
+          }
+        }
+      ]
+  }</code></pre>
+<p>查看程序规范输出日志</p>
+<p><img src="/images/kubernetes-logging-aggeration-using-efk/efk_podfile.jpg" srcset="/img/loading.gif" alt=""></p>
+<p>查看 ingress 日志</p>
+<p><img src="/images/kubernetes-logging-aggeration-using-efk/efk_ingress.jpg" srcset="/img/loading.gif" alt=""></p>
+<p>查看标准输出</p>
+<p><img src="/images/kubernetes-logging-aggeration-using-efk/efk_stdout.jpg" srcset="/img/loading.gif" alt=""></p>
+
+            </div>
+            <hr>
+            <div>
+              <p>
+                
+                  <span>
+                <i class="iconfont icon-inbox"></i>
+                    
+                      <a class="hover-with-bg" href="/categories/kubernetes/">kubernetes</a>
+                      &nbsp;
+                    
+                  </span>&nbsp;&nbsp;
+                
+                
+                  <span>
+                <i class="iconfont icon-tag"></i>
+                    
+                      <a class="hover-with-bg" href="/tags/logging/">logging</a>
+                    
+                  </span>
+                
+              </p>
+              
+                <p class="note note-warning">本博客所有文章除特别声明外，均采用 <a href="https://zh.wikipedia.org/wiki/Wikipedia:CC_BY-SA_3.0%E5%8D%8F%E8%AE%AE%E6%96%87%E6%9C%AC" target="_blank" rel="nofollow noopener noopener">CC BY-SA 3.0协议</a> 。转载请注明出处！</p>
+              
+              
+                <div class="post-prevnext row">
+                  <div class="post-prev col-6">
+                    
+                    
+                      <a href="/2020/04/30/graph-easy-quick-start/">
+                        <i class="fa fa-chevron-left"></i>
+                        <span class="hidden-mobile">graph-easy 快速入门</span>
+                        <span class="visible-mobile">上一篇</span>
+                      </a>
+                    
+                  </div>
+                  <div class="post-next col-6">
+                    
+                    
+                      <a href="/2020/03/24/fzf-quick-start/">
+                        <span class="hidden-mobile">Fzf 快速入门</span>
+                        <span class="visible-mobile">下一篇</span>
+                        <i class="fa fa-chevron-right"></i>
+                      </a>
+                    
+                  </div>
+                </div>
+              
+            </div>
+
+              
+                <!-- Comments -->
+                <div class="comments" id="comments">
+                  
+                  
+  <div class="disqus" style="width:100%">
+    <div id="disqus_thread"></div>
+    <script type="text/javascript">
+      var disqus_config = function () {
+        this.page.url = 'http://yoursite.com/2020/03/31/kubernetes-logging-aggeration-using-efk/';
+        this.page.identifier = '/2020/03/31/kubernetes-logging-aggeration-using-efk/';
+      };
+      var oldLoad = window.onload;
+      window.onload = function () {
+        var d = document, s = d.createElement('script');
+        s.type = 'text/javascript';
+        s.src = '//' + 'kuops-com' + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+        oldLoad && oldLoad();
+      };
+    </script>
+    <noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript" target="_blank" rel="nofollow noopener noopener">comments
+        powered by Disqus.</a></noscript>
+  </div>
+
+
+                </div>
+              
+          </div>
+        </div>
+      </div>
+    </div>
+    
+      <div class="d-none d-lg-block col-lg-2 toc-container" id="toc-ctn">
+        <div id="toc-start"></div>
+<div id="toc">
+  <p class="h5"><i class="far fa-list-alt"></i>&nbsp;目录</p>
+  <div id="tocbot"></div>
+</div>
+
+      </div>
+    
+  </div>
+</div>
+
+<!-- Custom -->
+
+
+    
+  </main>
+
+  
+    <a class="z-depth-1" id="scroll-top-button" href="#" role="button">
+      <i class="fa fa-chevron-up scroll-top-arrow" aria-hidden="true"></i>
+    </a>
+  
+
+  
+    <div class="modal fade" id="modalSearch" tabindex="-1" role="dialog" aria-labelledby="ModalLabel"
+     aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header text-center">
+        <h4 class="modal-title w-100 font-weight-bold">搜索</h4>
+        <button type="button" id="local-search-close" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body mx-3">
+        <div class="md-form mb-5">
+          <input type="text" id="local-search-input" class="form-control validate">
+          <label data-error="x" data-success="v"
+                 for="local-search-input">关键词</label>
+        </div>
+        <div class="list-group" id="local-search-result"></div>
+      </div>
+    </div>
+  </div>
+</div>
+  
+
+  
+
+  
+
+  <footer class="mt-5">
+  <div class="text-center py-3">
+    <div>
+      <a href="https://hexo.io" target="_blank" rel="nofollow noopener"><b>Hexo</b></a>
+      <i class="iconfont icon-love"></i>
+      <a href="https://github.com/fluid-dev/hexo-theme-fluid" target="_blank" rel="nofollow noopener"> <b>Fluid</b></a>
+    </div>
+    
+
+    
+
+    
+  </div>
+</footer>
+
+<!-- SCRIPTS -->
+<script  src="https://cdn.staticfile.org/jquery/3.4.1/jquery.min.js" ></script>
+<script  src="https://cdn.staticfile.org/popper.js/1.16.1/umd/popper.min.js" ></script>
+<script  src="https://cdn.staticfile.org/twitter-bootstrap/4.4.1/js/bootstrap.min.js" ></script>
+<script  src="https://cdn.staticfile.org/mdbootstrap/4.13.0/js/mdb.min.js" ></script>
+<script  src="/js/main.js" ></script>
+
+
+  <script  src="/js/lazyload.js" ></script>
+
+
+
+  
+  <script  src="https://cdn.staticfile.org/tocbot/4.10.0/tocbot.min.js" ></script>
+  <script>
+    $(document).ready(function () {
+      var navHeight = $('#navbar').height();
+      var toc = $('#toc');
+      var boardCtn = $('#board-ctn');
+      var boardTop = boardCtn.offset().top;
+      var tocLimMax = 2 * boardTop + boardCtn.height();
+
+      $(window).scroll(function () {
+        var tocLimMin = $('#toc-start').offset().top - navHeight;
+        var scroH = document.body.scrollTop + document.documentElement.scrollTop;
+
+        if (tocLimMin <= scroH && scroH <= tocLimMax) {
+          toc.css({
+            'display': 'block',
+            'position': 'fixed',
+            'top': navHeight,
+          });
+        } else if (scroH <= tocLimMin) {
+          toc.css({
+            'position': '',
+            'top': '',
+          });
+        } else if (scroH > tocLimMax) {
+          toc.css('display', 'none');
+        }
+      });
+      tocbot.init({
+        tocSelector: '#tocbot',
+        contentSelector: '.post-content',
+        headingSelector: 'h1,h2,h3,h4,h5,h6',
+        linkClass: 'tocbot-link',
+        activeLinkClass: 'tocbot-active-link',
+        listClass: 'tocbot-list',
+        isCollapsedClass: 'tocbot-is-collapsed',
+        collapsibleClass: 'tocbot-is-collapsible',
+        scrollSmooth: true,
+        headingsOffset: -boardTop
+      });
+      if ($('.toc-list-item').length > 0) {
+        $('#toc > p').css('visibility', 'visible');
+      }
+      var offset = boardCtn.css('margin-right')
+      $('#toc-ctn').css({
+        'right': offset
+      })
+    });
+  </script>
+
+
+
+
+
+  <script defer src="https://cdn.staticfile.org/clipboard.js/2.0.6/clipboard.min.js" ></script>
+  <script  src="/js/clipboard-use.js" ></script>
+
+
+
+
+
+
+
+
+<!-- Plugins -->
+
+
+  
+
+  
+    <!-- Google Analytics -->
+    <script defer>
+      (function (i, s, o, g, r, a, m) {
+        i['GoogleAnalyticsObject'] = r;
+        i[r] = i[r] || function () {
+          (i[r].q = i[r].q || []).push(arguments)
+        }, i[r].l = 1 * new Date();
+        a = s.createElement(o),
+          m = s.getElementsByTagName(o)[0];
+        a.async = 1;
+        a.src = g;
+        m.parentNode.insertBefore(a, m)
+      })(window, document, 'script', 'https://www.google-analytics.com/analytics.js', 'ga');
+
+      ga('create', 'UA-161501571-1', 'auto');
+      ga('send', 'pageview');
+    </script>
+  
+
+  
+
+  
+
+  
+
+
+
+  <script  src="https://cdn.staticfile.org/prettify/188.0.0/prettify.min.js" ></script>
+  <script>
+    $(document).ready(function () {
+      $('pre').addClass('prettyprint  linenums');
+      prettyPrint();
+    })
+  </script>
+
+
+
+  <script  src="https://cdn.staticfile.org/typed.js/2.0.11/typed.min.js" ></script>
+  <script>
+    var typed = new Typed('#subtitle', {
+      strings: [
+        '  ',
+        "使用 efk 对 kubernetes 日志进程聚合&nbsp;",
+      ],
+      cursorChar: "⎈",
+      typeSpeed: 70,
+      loop: false,
+    });
+    typed.stop();
+    $(document).ready(function () {
+      $(".typed-cursor").addClass("h2");
+      typed.start();
+    });
+  </script>
+
+
+
+  <script  src="https://cdn.staticfile.org/anchor-js/4.2.2/anchor.min.js" ></script>
+  <script>
+    anchors.options = {
+      placement: "right",
+      visible: "hover",
+      
+    };
+    var el = "h1,h2,h3,h4,h5,h6".split(",");
+    var res = [];
+    for (item of el) {
+      res.push(".markdown-body > " + item)
+    }
+    anchors.add(res.join(", "))
+  </script>
+
+
+
+  <script  src="/js/local-search.js" ></script>
+  <script>
+    var path = "/local-search.xml";
+    var inputArea = document.querySelector("#local-search-input");
+    inputArea.onclick = function () {
+      getSearchFile(path);
+      this.onclick = null
+    }
+  </script>
+
+
+
+  <script defer src="https://cdn.staticfile.org/fancybox/3.5.7/jquery.fancybox.min.js" ></script>
+  <script>
+    $("#post img:not(.no-zoom img, img[no-zoom])").each(
+      function () {
+        var element = document.createElement("a");
+        $(element).attr("data-fancybox", "images");
+        $(element).attr("href", $(this).attr("src"));
+        $(this).wrap(element);
+      }
+    );
+  </script>
+
+
+
+
+
+
+
+
+
+
+
+
+</body>
+</html>
